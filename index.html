@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Рейтинг расхождений · РФ / США</title>
+<script>
+(function () {
+  var m = document.cookie.match(/(?:^|;\s*)arb_theme=([^;]*)/);
+  var t = m ? decodeURIComponent(m[1]) : null;
+  if (!t) t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
+<style>
+  :root {
+    --ink:      #062247;   /* text on glass */
+    --ink-soft: #3c5f92;
+    --blue:     #006DF0;
+    --blue-dk:  #0047B3;
+    --green:    #1d7a2e;
+    --red:      #D42A18;
+  }
+  * { box-sizing: border-box; }
+
+  /* ---------- white studio background ---------- */
+  body {
+    margin: 0; padding: 26px; color: var(--ink); min-height: 100vh;
+    font: 14px/1.45 Arial, "Helvetica Neue", Helvetica, sans-serif;
+    background:
+      radial-gradient(1200px 720px at 50% -12%, #ffffff 0%, #f1f3f7 55%, #e6e9ef 100%);
+    background-attachment: fixed;
+  }
+
+  /* ---------- light frosted bar (header / controls) ---------- */
+  header, .controls {
+    position: relative;
+    background: none; box-shadow: none;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px;
+    padding: 2px 6px 10px; margin-bottom: 6px;
+  }
+  header h1 { font-size: 19px; margin: 0; font-weight: 700; letter-spacing: .2px; color: var(--ink); }
+  .meta { color: var(--ink-soft); font-size: 13px; }
+  .meta b { color: var(--ink); font-weight: 700; }
+  #status {
+    padding: 5px 13px 5px 11px; border-radius: 99px; font-size: 12.5px; font-weight: 600;
+    color: #0a4da8; background: linear-gradient(160deg, rgba(255,255,255,.95), rgba(214,235,255,.9));
+    box-shadow: 0 0 18px rgba(0,140,255,.45), inset 0 0 0 1px rgba(255,255,255,.9);
+  }
+  #status.stale {
+    color: #fff; background: linear-gradient(160deg, #ff6a58, #d42a18);
+    box-shadow: 0 0 18px rgba(212,42,24,.5);
+  }
+
+  /* ---------- controls ---------- */
+  .controls {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+    padding: 2px 6px 14px; margin-bottom: 8px;
+  }
+  .controls label { color: var(--ink-soft); font-size: 13px; margin-right: 6px; }
+  .controls input[type=number] {
+    background: rgba(255,255,255,.95); color: var(--ink); border: 0;
+    border-radius: 11px; padding: 8px 11px; width: 132px; font: inherit;
+    box-shadow: inset 0 0 0 1px rgba(120,170,230,.45), inset 0 2px 4px rgba(0,40,110,.10);
+  }
+  .controls input[type=number]:focus { outline: none; box-shadow: inset 0 0 0 2px var(--blue), 0 0 0 4px rgba(0,109,240,.16); }
+  .controls input.small { width: 68px; }
+  .presets { display: inline-flex; gap: 7px; }
+  .presets button {
+    background: rgba(255,255,255,.95); color: var(--blue-dk); border: 0;
+    border-radius: 99px; padding: 7px 14px; cursor: pointer; font: inherit; font-weight: 700;
+    box-shadow: inset 0 0 0 1px rgba(120,170,230,.45), 0 2px 6px rgba(0,60,150,.10);
+    transition: all .15s;
+  }
+  .presets button:hover {
+    background: linear-gradient(160deg, #2b8cff, var(--blue-dk)); color: #fff;
+    box-shadow: 0 6px 18px rgba(0,109,240,.45);
+  }
+  .controls .chk { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; cursor: pointer; font-weight: 700; }
+  .controls .chk input { cursor: pointer; width: 17px; height: 17px; accent-color: var(--blue); }
+  .hint { color: var(--ink-soft); font-size: 12px; }
+
+  /* ---------- grid ---------- */
+  .grid { display: grid; gap: 30px; grid-template-columns: 1fr; }
+  @media (min-width: 1000px) { .grid { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 2200px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+
+  /* ---------- THE GLASS SLAB ---------- */
+  .card {
+    position: relative;
+    /* 9-slice of the generated glass plate: corners keep their shape,
+       only the straight edge segments stretch */
+    background: none;
+    border: 24px solid transparent;
+    border-image: url("assets/glass-light.webp") 95 fill / 24px / 0 stretch;
+    border-radius: 0; overflow: visible;
+    filter: drop-shadow(0 22px 20px rgba(0,60,150,.22));
+  }
+  /* caustics — the signature of the render */
+  /* glossy sheen across the top, like a polished slab */
+  .card > * { position: relative; z-index: 1; }
+
+  .card h2 {
+    margin: 0; padding: 4px 6px 10px; font-size: 15px; font-weight: 800; color: var(--ink);
+    display: flex; gap: 10px; align-items: center; letter-spacing: .2px;
+    text-shadow: 0 1px 0 rgba(255,255,255,.65);
+  }
+  .card h2 .sub { color: var(--ink-soft); font-weight: 600; font-size: 13px; }
+  .card h2 .cnt { margin-left: auto; color: var(--ink-soft); font-weight: 600; font-size: 12px; }
+  .badge {
+    font-size: 11px; padding: 3px 10px; border-radius: 99px; font-weight: 800;
+    background: rgba(255,255,255,.92);
+    box-shadow: 0 0 16px rgba(255,255,255,.75), inset 0 0 0 1px rgba(255,255,255,.9);
+  }
+  .badge.bid { color: var(--green); }
+  .badge.ask { color: var(--red); }
+
+  /* ---------- table on glass ---------- */
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { padding: 7px 10px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  th:nth-child(1), td:nth-child(1) { width: 36px; }
+  th:nth-child(2), td:nth-child(2) { width: 94px; }
+  th:nth-child(4), td:nth-child(4) { width: 104px; }
+  th:nth-child(5), td:nth-child(5) { width: 110px; }
+  th:nth-child(6), td:nth-child(6) { width: 118px; }
+  th {
+    color: var(--ink-soft); font-weight: 700; font-size: 11.5px; letter-spacing: .4px;
+    border-bottom: 1px solid rgba(255,255,255,.55);
+    text-shadow: 0 1px 0 rgba(255,255,255,.6);
+  }
+  /* the glowing pill on the diff column, as in the render */
+  th:nth-child(6) {
+    color: #fff; font-weight: 800;
+    text-shadow: 0 1px 2px rgba(0,40,110,.45);
+  }
+  th:nth-child(6) { padding-left: 5px; padding-right: 6px; overflow: visible; }
+  th:nth-child(6) > span {
+    display: inline-block; padding: 3px 9px; border-radius: 99px; white-space: nowrap;
+    background: linear-gradient(160deg, #35a0ff, #0b63d6);
+    box-shadow: 0 0 18px rgba(60,170,255,.85), inset 0 1px 0 rgba(255,255,255,.55);
+  }
+  td { border-bottom: 1px solid rgba(255,255,255,.30); color: var(--ink); font-weight: 600; }
+  td.l, th.l { text-align: left; }
+  tbody tr:hover { background: rgba(255,255,255,.28); }
+  td.code { font-weight: 800; color: #0b3f8f; }
+  td.name { color: var(--ink-soft); font-weight: 500; }
+  td.diff { font-weight: 800; text-shadow: 0 1px 0 rgba(255,255,255,.45); }
+  td.diff.pos { color: var(--green); }
+  td.diff.neg { color: var(--red); }
+  tbody tr:last-child td { border-bottom: 0; }
+
+  .empty { padding: 22px; color: var(--ink-soft); text-align: center; font-weight: 600; }
+  .empty.halt {
+    color: #fff; font-weight: 800;
+    background: linear-gradient(160deg, rgba(255,106,88,.95), rgba(200,30,16,.95));
+    text-shadow: 0 1px 2px rgba(0,0,0,.25);
+  }
+  .nodata {
+    grid-column: 1 / -1; padding: 60px 16px; text-align: center; font-size: 16px;
+    color: var(--ink-soft); font-weight: 600; border-radius: 30px;
+    background: linear-gradient(150deg, rgba(255,255,255,.92), rgba(236,244,255,.7));
+    backdrop-filter: blur(22px);
+    box-shadow: 0 30px 50px -26px rgba(0,60,150,.45), inset 0 0 0 1px rgba(255,255,255,.85);
+  }
+  .nodata.err { color: var(--red); font-weight: 800; }
+  footer { margin-top: 22px; color: var(--ink-soft); font-size: 12px; padding: 0 6px; }
+
+  @media (max-width: 520px) {
+    body { padding: 12px; }
+    header, .controls { padding: 14px 16px; }
+    .card { border-radius: 26px; }
+    .grid { gap: 22px; }
+    th, td { padding: 5px 6px; font-size: 12px; }
+    th:nth-child(1), td:nth-child(1) { width: 24px; }
+    th:nth-child(2), td:nth-child(2) { width: 74px; }
+    th:nth-child(4), td:nth-child(4) { width: 78px; }
+    th:nth-child(5), td:nth-child(5) { width: 84px; }
+    th:nth-child(6), td:nth-child(6) { width: 102px; }
+    th:nth-child(6) > span { padding: 2px 7px; }
+  }
+
+
+  /* ---------- "Мои бумаги" button + modal ---------- */
+  .mybtn {
+    background: #fff; color: var(--blue-dk); border: 0;
+    border-radius: 99px; padding: 7px 16px; cursor: pointer; font: inherit; font-weight: 700;
+    box-shadow: inset 0 0 0 1px rgba(120,170,230,.45), 0 2px 6px rgba(0,60,150,.10);
+    transition: all .15s;
+  }
+  .mybtn:hover { background: linear-gradient(160deg, #2b8cff, var(--blue-dk)); color: #fff;
+                 box-shadow: 0 6px 18px rgba(0,109,240,.45); }
+  .mybtn.on { background: linear-gradient(160deg, #2b8cff, var(--blue-dk)); color: #fff; }
+
+  .modal { position: fixed; inset: 0; z-index: 50; display: flex;
+           align-items: center; justify-content: center; padding: 20px;
+           background: rgba(10,40,90,.28); backdrop-filter: blur(3px); }
+  .modal[hidden] { display: none; }
+  .modal-card {
+    width: min(620px, 100%); max-height: min(78vh, 720px); display: flex; flex-direction: column;
+    background: linear-gradient(160deg, #ffffff, #f2f7ff);
+    border-radius: 22px; padding: 18px 20px;
+    box-shadow: 0 40px 80px -30px rgba(0,45,120,.55), inset 0 0 0 1px rgba(255,255,255,.9);
+  }
+  .modal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .modal-head b { font-size: 16px; color: var(--ink); }
+  .modal-count { color: var(--ink-soft); font-size: 13px; }
+  .modal-x { margin-left: auto; background: none; border: 0; font-size: 24px; line-height: 1;
+             color: var(--ink-soft); cursor: pointer; padding: 0 4px; }
+  .modal-x:hover { color: var(--red); }
+  #mySearch {
+    width: 100%; font: inherit; padding: 9px 13px; border: 0; border-radius: 11px;
+    background: #fff; color: var(--ink);
+    box-shadow: inset 0 0 0 1px rgba(120,170,230,.45), inset 0 2px 4px rgba(0,40,110,.08);
+  }
+  #mySearch:focus { outline: none; box-shadow: inset 0 0 0 2px var(--blue), 0 0 0 4px rgba(0,109,240,.16); }
+  .my-list { flex: 1; overflow-y: auto; margin: 12px 0; padding-right: 4px; }
+  .my-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 9px; cursor: pointer; }
+  .my-row:hover { background: rgba(0,109,240,.08); }
+  .my-row input { width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer; flex: none; }
+  .my-row .c { font-weight: 700; color: var(--blue-dk); flex: none; min-width: 92px; }
+  .my-row .n { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .my-row .k { margin-left: auto; font-size: 11px; color: var(--ink-soft); flex: none; }
+  .my-empty { padding: 24px; text-align: center; color: var(--ink-soft); }
+  .my-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+                border-top: 1px solid rgba(0,71,179,.12); padding-top: 12px; }
+  .my-actions .chk { display: inline-flex; align-items: center; gap: 7px; font-size: 13px;
+                     font-weight: 700; color: var(--ink); cursor: pointer; }
+  .my-actions .chk input { width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer; }
+
+  /* ============ DARK THEME (visual of the original silkinn.net/arb build) ============
+     Flat dark panels instead of the glass plate; toggled via data-theme on <html>. */
+  html[data-theme="dark"] {
+    --bg: #0f1115; --panel: #171a21; --line: #262b36;
+    --ink: #e6e9ef; --ink-soft: #8b94a7;
+    --blue: #4da3ff; --blue-dk: #4da3ff; --field: #11141a;
+    --green: #2ecc71; --red: #ff5b5b;
+  }
+  html[data-theme="dark"] body {
+    background: var(--bg); background-image: none; color: var(--ink);
+  }
+  html[data-theme="dark"] header, html[data-theme="dark"] .controls {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 14px; box-shadow: none;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  html[data-theme="dark"] header { margin-bottom: 12px; }
+  html[data-theme="dark"] header h1 { color: var(--ink); font-weight: 600; }
+  html[data-theme="dark"] .meta { color: var(--ink-soft); }
+  html[data-theme="dark"] .meta b { color: var(--ink); }
+  html[data-theme="dark"] #status {
+    background: none; border: 0; box-shadow: none; padding: 0; color: var(--ink-soft);
+  }
+  html[data-theme="dark"] #status.stale { color: var(--red); background: none; }
+
+  /* card: plain dark panel, no glass plate */
+  html[data-theme="dark"] .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-image: none; border-radius: 10px; overflow: hidden;
+    filter: none; box-shadow: none;
+  }
+  html[data-theme="dark"] .card h2 {
+    background: none; color: var(--ink); font-weight: 600; text-shadow: none;
+    padding: 10px 14px; border-bottom: 1px solid var(--line);
+  }
+  html[data-theme="dark"] .card h2::before { display: none; }
+  html[data-theme="dark"] .card h2 .sub,
+  html[data-theme="dark"] .card h2 .cnt { color: var(--ink-soft); }
+  html[data-theme="dark"] .badge { background: rgba(255,255,255,.06); box-shadow: none; }
+  html[data-theme="dark"] .badge.bid { color: var(--green); background: rgba(46,204,113,.12); }
+  html[data-theme="dark"] .badge.ask { color: var(--red);   background: rgba(255,91,91,.12); }
+
+  html[data-theme="dark"] th {
+    color: var(--ink-soft); background: none; text-transform: none;
+    font-weight: 500; border-bottom: 1px solid var(--line); text-shadow: none;
+  }
+  html[data-theme="dark"] th:nth-child(6) { color: var(--ink-soft); text-shadow: none; }
+  html[data-theme="dark"] th:nth-child(6) > span {
+    background: rgba(77,163,255,.14); color: var(--blue); box-shadow: none;
+  }
+  html[data-theme="dark"] td { color: var(--ink); border-bottom: 1px solid rgba(255,255,255,.05); }
+  html[data-theme="dark"] tbody tr:nth-child(even) { background: rgba(255,255,255,.02); }
+  html[data-theme="dark"] tbody tr:hover { background: rgba(77,163,255,.10); }
+  html[data-theme="dark"] td.code { color: var(--blue); }
+  html[data-theme="dark"] td.name { color: var(--ink-soft); }
+  html[data-theme="dark"] td.diff { text-shadow: none; }
+
+  html[data-theme="dark"] .controls input[type=number],
+  html[data-theme="dark"] .presets button,
+  html[data-theme="dark"] .mybtn,
+  html[data-theme="dark"] #mySearch {
+    background: var(--field); color: var(--ink);
+    border: 1px solid var(--line); box-shadow: none;
+  }
+  html[data-theme="dark"] .presets button:hover,
+  html[data-theme="dark"] .mybtn:hover { border-color: var(--blue); color: var(--blue); background: var(--field); }
+  html[data-theme="dark"] .mybtn.on { border-color: var(--blue); color: var(--blue); }
+  html[data-theme="dark"] .controls label,
+  html[data-theme="dark"] .hint { color: var(--ink-soft); }
+  html[data-theme="dark"] .controls .chk { color: var(--ink); }
+
+  html[data-theme="dark"] .modal { background: rgba(0,0,0,.55); }
+  html[data-theme="dark"] .modal-card {
+    background: var(--panel); box-shadow: 0 30px 60px -20px rgba(0,0,0,.7), inset 0 0 0 1px var(--line);
+  }
+  html[data-theme="dark"] .modal-head b { color: var(--ink); }
+  html[data-theme="dark"] .modal-count, html[data-theme="dark"] .modal-x { color: var(--ink-soft); }
+  html[data-theme="dark"] .my-row:hover { background: rgba(77,163,255,.10); }
+  html[data-theme="dark"] .my-row .c { color: var(--blue); }
+  html[data-theme="dark"] .my-row .n, html[data-theme="dark"] .my-row .k,
+  html[data-theme="dark"] .my-empty { color: var(--ink-soft); }
+  html[data-theme="dark"] .my-actions { border-top-color: var(--line); }
+  html[data-theme="dark"] .my-actions .chk { color: var(--ink); }
+
+  html[data-theme="dark"] .empty { color: var(--ink-soft); }
+  html[data-theme="dark"] .empty.halt { background: rgba(255,91,91,.14); color: var(--red); }
+  html[data-theme="dark"] .nodata {
+    background: var(--panel); border: 1px solid var(--line);
+    box-shadow: none; backdrop-filter: none; color: var(--ink-soft);
+  }
+  html[data-theme="dark"] footer { color: var(--ink-soft); }
+
+  /* theme toggle button */
+  .themebtn {
+    background: #fff; color: var(--blue-dk); border: 0; cursor: pointer;
+    border-radius: 99px; width: 34px; height: 34px; font-size: 15px; line-height: 1;
+    box-shadow: inset 0 0 0 1px rgba(120,170,230,.45), 0 2px 6px rgba(0,60,150,.10);
+  }
+  .themebtn:hover { background: linear-gradient(160deg, #2b8cff, var(--blue-dk)); color: #fff; }
+  html[data-theme="dark"] .themebtn {
+    background: var(--field); color: var(--ink); border: 1px solid var(--line); box-shadow: none;
+  }
+  html[data-theme="dark"] .themebtn:hover { border-color: var(--blue); color: var(--blue); }
+</style>
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+   ym(110165799, "init", {clickmap:true, trackLinks:true, accurateTrackBounce:true});
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/110165799" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+</head>
+<body>
+  <header>
+    <h1>Рейтинг расхождений · РФ / США</h1>
+    <span class="meta">USD/RUB: <b id="usd">—</b></span>
+    <span class="meta">бумаг: <b id="seccount">—</b></span>
+    <span class="meta" id="visitsWrap">визитов: <b id="visits">—</b></span>
+    <span class="meta">обновлено: <b id="generated">—</b></span>
+    <span class="meta" id="status">загрузка…</span>
+    <button type="button" id="themeBtn" class="themebtn" title="Тема">🌙</button>
+  </header>
+
+  <div class="controls">
+    <div>
+      <label for="minvol">Мин. объём, ₽</label>
+      <input id="minvol" type="number" min="0" step="10000" value="1">
+    </div>
+    <div class="presets" id="presets">
+      <button data-v="100000">100k</button>
+      <button data-v="250000">250k</button>
+      <button data-v="500000">500k</button>
+      <button data-v="1000000">1M</button>
+      <button data-v="2000000">2M</button>
+    </div>
+    <div>
+      <label for="topn">Топ N</label>
+      <input id="topn" class="small" type="number" min="1" max="100" step="1" value="10">
+    </div>
+    <label class="chk"><input type="checkbox" id="exchangeOnly"> Только бумаги для обмена</label>
+    <button type="button" id="myOpen" class="mybtn">Мои бумаги</button>
+    <span class="hint">VWAP считается на лету: набираем стакан от лучшей цены до порога; бумаги с более тонким стаканом скрываются.</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div id="myModal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <b>Мои бумаги</b>
+        <span class="modal-count" id="myCount"></span>
+        <button type="button" class="modal-x" id="myClose" title="Закрыть">&times;</button>
+      </div>
+      <input id="mySearch" type="search" placeholder="Поиск по коду или названию…" autocomplete="off">
+      <div class="my-list" id="myList"></div>
+      <div class="my-actions">
+        <label class="chk"><input type="checkbox" id="mySelAll"> Выделить все</label>
+        <label class="chk"><input type="checkbox" id="myClrAll"> Отменить все</label>
+        <span class="hint" id="myShown"></span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Diff% = (RU&nbsp;VWAP / US&nbsp;цена&nbsp;в&nbsp;рублях − 1) × 100.
+    «expensive bids» — RU дороже US (положительный diff), «cheap offers» — RU дешевле US (отрицательный diff).
+    Данные обновляются с сервера каждые 30&nbsp;сек; фильтр применяется мгновенно без перезагрузки.
+  </footer>
+
+<script>
+const REFRESH_MS = 30000;
+const STALE_MS   = 180000;   // «устарели» при цикле ~60–100с
+const NO_DATA_MS = 300000;   // нет данных, если не обновлялось > 5 мин
+// data.json served live from the VPS nginx (silkinn.net) over HTTPS+CORS — no git, no CDN cache
+const DATA_URL   = "https://silkinn.net/arb/data.json";
+
+// ISINs eligible for exchange ("Обмен Спб Основной"). When the checkbox is on:
+// MTQR is hidden entirely, QMEBLCK shows only securities whose ISIN is here.
+const EXCHANGE = new Set([
+  "US00206R1023","US00287Y1091","US0079031078","US0138721065","US01609W1027","US02079K1079","US02079K3059","US02209S1033",
+  "US0231351067","US02376R1023","US0378331005","US0382221051","US0567521085","US0605051046","US0900401060","US0970231058",
+  "US1104481072","US11135F1012","US1468691027","US1667641005","US1717793095","US17243V1026","US17275R1023","US1729674242",
+  "US18452B2097","US18914F1030","US18915M1071","US1912161007","US19260Q1076","US2473617023","US25460G1388","US25460G8318",
+  "US2546871060","US29273V1008","US30231G1022","US31188V1008","US3647601083","US3696043013","US37045V1008","US38141G1040",
+  "US4234031049","US4234521015","US4581401001","US4592001014","US46090E1038","US4642874329","US4642875235","US46428Q1094",
+  "US46429B6719","US46625H1005","US47215P1066","US4781601046","US4824801009","US5128073062","US5502411037","US55024U1097",
+  "US55616P1049","US5657881067","US57636Q1040","US5949181045","US5949724083","US5951121038","US60770K1079","US64110L1061",
+  "US6516391066","US6549022043","US67066G1040","US6745991058","US69608A1088","US70450Y1038","US7170811035","US7475251036",
+  "US7672921050","US7707001027","US78462F1030","US78463V1070","US79466L3024","US80004C2008","US81369Y8030","US8356993076",
+  "US8447411088","US8522341036","US8740391003","US8740801043","US88160R1014","US88579Y1010","US90138F1021","US9024941034",
+  "US9100471096","US91822M5022","US9219438580","US9220428588","US9229083632","US92343V1044","US92763W1036","US92826C8394",
+  "US9311421039","US9344231041","US9581021055","US98980L1017",
+]);
+
+const TITLES = { bid: "РФ дороже США", ask: "РФ дешевле США" };
+const TYPE_LABEL = { bid: "BID", ask: "OFFER" };   // internal key stays "ask"; UI shows OFFER
+const COLS = [
+  ["№",        "r"], ["Тикер",    "l code"], ["Название", "l name"],
+  ["Цена РФ",  ""],  ["Цена США", ""],       ["Расхожд. %", "diff"],
+];
+
+let DATA = null;          // последний загруженный data.json
+let lastGenerated = null;
+
+function dataAgeMs() {
+  return lastGenerated ? (Date.now() - new Date(lastGenerated).getTime()) : Infinity;
+}
+
+function fmt(n, d=2) {
+  return (typeof n === "number" && isFinite(n))
+    ? n.toLocaleString("ru-RU", {minimumFractionDigits:d, maximumFractionDigits:d})
+    : "—";
+}
+
+// Повторяет vwap_from_book из arb_tables.lua.
+// levels — массив [price, qty], уже отсортированный лучшим уровнем первым.
+function vwap(levels, minVol) {
+  let volRub = 0, units = 0, weighted = 0;
+  for (const lv of levels) {
+    const price = lv[0], qty = lv[1];
+    if (!(price > 0 && qty > 0)) continue;
+    const levelRub = price * qty;
+    const remaining = minVol - volRub;
+    if (levelRub <= remaining) {
+      weighted += price * qty; units += qty; volRub += levelRub;
+    } else {
+      const pq = remaining / price;
+      weighted += price * pq; units += pq; volRub += remaining;
+    }
+    if (volRub >= minVol) break;
+  }
+  if (volRub < minVol || units <= 0) return null;
+  return weighted / units;
+}
+
+function computeTables(data, minVol, exchangeOnly) {
+  const byClass = {};
+  for (const s of data.securities) {
+    if (exchangeOnly) {
+      if (s.cls === "MTQR") continue;                                  // hide MTQR entirely
+      if (s.cls === "QMEBLCK" && !EXCHANGE.has((s.isin || "").toUpperCase())) continue;
+    }
+    if (MY.size && !MY.has(s.cls + "|" + s.code)) continue;            // "Мои бумаги" watch list
+    const usRub = s.us_usd * data.usd_rate;
+    if (!(usRub > 0)) continue;
+    const bids = [...s.bids].sort((a,b) => b[0]-a[0]); // лучший бид первым (дороже)
+    const asks = [...s.asks].sort((a,b) => a[0]-b[0]); // лучший аск первым (дешевле)
+    const vb = vwap(bids, minVol);
+    const va = vwap(asks, minVol);
+    (byClass[s.cls] ??= { bid: [], ask: [] });
+    if (vb !== null) byClass[s.cls].bid.push({ code:s.code, name:s.name, ru:vb, us_rub:usRub, diff:(vb/usRub-1)*100 });
+    if (va !== null) byClass[s.cls].ask.push({ code:s.code, name:s.name, ru:va, us_rub:usRub, diff:(va/usRub-1)*100 });
+  }
+  for (const cls of Object.keys(byClass)) {
+    byClass[cls].bid.sort((a,b) => b.diff - a.diff); // RU дороже сверху
+    byClass[cls].ask.sort((a,b) => a.diff - b.diff); // RU дешевле сверху
+  }
+  return byClass;
+}
+
+function renderCard(cls, type, rows, topN) {
+  const top = rows.slice(0, topN);
+  const card = document.createElement("div");
+  card.className = "card";
+  const h = document.createElement("h2");
+  h.innerHTML = `${cls} <span class="badge ${type}">${TYPE_LABEL[type]}</span>
+                 <span class="sub">${TITLES[type]||""}</span>
+                 <span class="cnt">${rows.length} прошли фильтр</span>`;
+  card.appendChild(h);
+
+  if (!top.length) {
+    const e = document.createElement("div");
+    e.className = "empty"; e.textContent = "нет бумаг под этот объём";
+    card.appendChild(e);
+    return card;
+  }
+
+  const thead = "<thead><tr>" + COLS.map(c =>
+    `<th class="${c[1]}">${c[1]==="diff" ? `<span>${c[0]}</span>` : c[0]}</th>`).join("") + "</tr></thead>";
+  const body = top.map((r, i) => {
+    const diffCls = r.diff >= 0 ? "pos" : "neg";
+    return "<tr>" +
+      `<td class="r">${i+1}</td>` +
+      `<td class="l code">${r.code}</td>` +
+      `<td class="l name" title="${r.name}">${r.name}</td>` +
+      `<td>${fmt(r.ru)}</td>` +
+      `<td>${fmt(r.us_rub)}</td>` +
+      `<td class="diff ${diffCls}">${r.diff>=0?"+":""}${fmt(r.diff)}%</td>` +
+    "</tr>";
+  }).join("");
+  const t = document.createElement("table");
+  t.innerHTML = thead + "<tbody>" + body + "</tbody>";
+  card.appendChild(t);
+  return card;
+}
+
+function renderBanner(cls, type, text) {
+  const card = document.createElement("div");
+  card.className = "card";
+  const h = document.createElement("h2");
+  h.innerHTML = `${cls} <span class="badge ${type}">${TYPE_LABEL[type]}</span>
+                 <span class="sub">${TITLES[type]||""}</span>`;
+  card.appendChild(h);
+  const e = document.createElement("div");
+  e.className = "empty halt";
+  e.textContent = text || "Торги не идут";
+  card.appendChild(e);
+  return card;
+}
+
+function render() {
+  const grid = document.getElementById("grid");
+  if (!DATA) { grid.innerHTML = '<div class="nodata">загрузка…</div>'; return; }
+  if (dataAgeMs() > NO_DATA_MS) {
+    grid.innerHTML = '<div class="nodata err">нет данных для отображения</div>';
+    return;
+  }
+  const minVol = Math.max(0, Number(document.getElementById("minvol").value) || 0);
+  const topN   = Math.max(1, Number(document.getElementById("topn").value) || 10);
+  const exchangeOnly = document.getElementById("exchangeOnly").checked;
+  setCookie("arb_topn", topN);
+  setCookie("arb_exchange", exchangeOnly ? "1" : "");
+
+  const byClass = computeTables(DATA, minVol, exchangeOnly);
+  const cs = DATA.class_status || {};
+  let classList = (DATA.classes && DATA.classes.length) ? DATA.classes : Object.keys(byClass);
+  if (exchangeOnly) classList = classList.filter(c => c === "QMEBLCK");
+
+  grid.innerHTML = "";
+  for (const cls of classList) {
+    const halted = cs[cls] && cs[cls].not_trading;
+    const rows = byClass[cls] || { bid: [], ask: [] };
+    for (const type of ["bid", "ask"]) {
+      if (halted) grid.appendChild(renderBanner(cls, type, cs[cls].label));
+      else        grid.appendChild(renderCard(cls, type, rows[type], topN));
+    }
+  }
+}
+
+function ago(iso) {
+  const sec = Math.max(0, Math.round((Date.now() - new Date(iso).getTime())/1000));
+  if (sec < 60) return sec + " сек назад";
+  return Math.floor(sec/60) + " мин " + (sec%60) + " сек назад";
+}
+
+let _noData = false;
+function updateStatus() {
+  const st = document.getElementById("status");
+  if (!lastGenerated) return;
+  document.getElementById("generated").textContent = ago(lastGenerated);
+  const age = dataAgeMs();
+  const noData = age > NO_DATA_MS;
+  if (noData !== _noData) { _noData = noData; render(); }  // переключаем вид на границе 5 мин
+  if (noData)              { st.textContent = "● нет данных"; st.className = "stale"; }
+  else if (age > STALE_MS) { st.textContent = "⚠ данные устарели"; st.className = "stale"; }
+  else                     { st.textContent = "● в эфире"; st.className = ""; }
+}
+
+async function load() {
+  try {
+    const res = await fetch(DATA_URL + "?cb=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    DATA = await res.json();
+    lastGenerated = DATA.generated_at;
+    document.getElementById("usd").textContent = fmt(DATA.usd_rate, 2);
+    document.getElementById("seccount").textContent = DATA.securities.length;
+    if (typeof mySyncState === "function") {
+      mySyncState();
+      if (!document.getElementById("myModal").hidden) myRenderList();
+    }
+    if (DATA.stats) {
+      document.getElementById("visits").textContent = DATA.stats.visits;
+      document.getElementById("visitsWrap").title =
+        `просмотров: ${DATA.stats.pageviews} · посетителей: ${DATA.stats.users}`;
+    }
+    render();
+    updateStatus();
+  } catch (e) {
+    const s = document.getElementById("status");
+    s.textContent = "ошибка загрузки: " + e.message; s.className = "stale";
+  }
+}
+
+// --- controls wiring ---
+(function init() {
+  const tn = getCookie("arb_topn");
+  if (tn) document.getElementById("topn").value = tn;
+  if (getCookie("arb_exchange")) document.getElementById("exchangeOnly").checked = true;
+
+  let deb;
+  const onChange = () => { clearTimeout(deb); deb = setTimeout(render, 150); };
+  document.getElementById("minvol").addEventListener("input", onChange);
+  document.getElementById("topn").addEventListener("input", onChange);
+  document.getElementById("exchangeOnly").addEventListener("change", render);
+  document.getElementById("presets").addEventListener("click", e => {
+    const v = e.target.getAttribute("data-v");
+    if (v) { document.getElementById("minvol").value = v; render(); }
+  });
+})();
+
+
+// ---------------- filter state persisted in cookies ----------------
+const COOKIE_DAYS = 365;
+const COOKIE_MAX  = 3800;          // stay well under the ~4 KB per-cookie limit
+
+function setCookie(name, value, days = COOKIE_DAYS) {
+  const exp = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${exp};path=/;SameSite=Lax`;
+}
+function getCookie(name) {
+  const m = document.cookie.match(new RegExp("(?:^|;\\s*)" +
+            name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]*)"));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function delCookie(name) { setCookie(name, "", -1); }
+
+// ---------------- "Мои бумаги": personal watch list ----------------
+const MY_KEY = "arb_mysecs";
+// A full "select all" (1360 entries) does not fit in a cookie, so an oversized
+// list spills into localStorage and the cookie just holds a marker.
+function myLoad() {
+  const c = getCookie(MY_KEY);
+  const raw = (c === "*") ? (localStorage.getItem(MY_KEY) || "[]") : (c || "[]");
+  try { return new Set(JSON.parse(raw)); } catch (e) { return new Set(); }
+}
+const MY = myLoad();
+const myKey = s => s.cls + "|" + s.code;
+const MY_LIST_CAP = 400;                    // rows rendered at once
+
+function mySave() {
+  const v = JSON.stringify([...MY]);
+  if (encodeURIComponent(v).length <= COOKIE_MAX) {
+    setCookie(MY_KEY, v);
+    localStorage.removeItem(MY_KEY);
+  } else {
+    setCookie(MY_KEY, "*");            // marker: the real list is too big for a cookie
+    localStorage.setItem(MY_KEY, v);
+  }
+}
+
+function myAll() { return DATA ? DATA.securities : []; }
+
+function myMatches(q) {
+  const all = myAll();
+  if (!q) return all;
+  const t = q.trim().toLowerCase();
+  return all.filter(s => s.code.toLowerCase().includes(t) ||
+                         (s.name || "").toLowerCase().includes(t));
+}
+
+function myRenderList() {
+  const box = document.getElementById("myList");
+  const q   = document.getElementById("mySearch").value;
+  const all = myAll();
+  const hits = myMatches(q);
+  if (!all.length) { box.innerHTML = '<div class="my-empty">загрузка…</div>'; return; }
+  if (!hits.length) { box.innerHTML = '<div class="my-empty">ничего не найдено</div>'; }
+  else {
+    const shown = hits.slice(0, MY_LIST_CAP);
+    box.innerHTML = shown.map(s => {
+      const k = myKey(s);
+      return `<label class="my-row"><input type="checkbox" data-k="${k}"${MY.has(k) ? " checked" : ""}>` +
+             `<span class="c">${s.code}</span><span class="n" title="${s.name}">${s.name}</span>` +
+             `<span class="k">${s.cls}</span></label>`;
+    }).join("");
+  }
+  document.getElementById("myShown").textContent =
+    hits.length > MY_LIST_CAP ? `показано ${MY_LIST_CAP} из ${hits.length}` : `найдено: ${hits.length}`;
+  mySyncState();
+}
+
+function mySyncState() {
+  const total = myAll().length;
+  document.getElementById("myCount").textContent = MY.size ? `выбрано: ${MY.size}` : "не выбрано";
+  document.getElementById("mySelAll").checked = total > 0 && MY.size === total;
+  document.getElementById("myClrAll").checked = MY.size === 0;
+  const btn = document.getElementById("myOpen");
+  btn.textContent = MY.size ? `Мои бумаги · ${MY.size}` : "Мои бумаги";
+  btn.classList.toggle("on", MY.size > 0);
+}
+
+function myOpenModal() { document.getElementById("myModal").hidden = false; myRenderList(); }
+function myCloseModal() { document.getElementById("myModal").hidden = true; }
+
+(function myInit() {
+  const modal = document.getElementById("myModal");
+  document.getElementById("myOpen").addEventListener("click", myOpenModal);
+  document.getElementById("myClose").addEventListener("click", myCloseModal);
+  modal.addEventListener("click", e => { if (e.target === modal) myCloseModal(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") myCloseModal(); });
+
+  // typing while EVERYTHING is selected clears the blanket selection
+  document.getElementById("mySearch").addEventListener("input", e => {
+    const total = myAll().length;
+    if (e.target.value.trim() && total > 0 && MY.size === total) { MY.clear(); mySave(); render(); }
+    myRenderList();
+  });
+
+  document.getElementById("myList").addEventListener("change", e => {
+    const cb = e.target.closest("input[data-k]");
+    if (!cb) return;
+    if (cb.checked) MY.add(cb.dataset.k); else MY.delete(cb.dataset.k);
+    mySave(); mySyncState(); render();
+  });
+
+  document.getElementById("mySelAll").addEventListener("change", e => {
+    if (e.target.checked) { myAll().forEach(s => MY.add(myKey(s))); }
+    else { MY.clear(); }
+    mySave(); myRenderList(); render();
+  });
+  document.getElementById("myClrAll").addEventListener("change", e => {
+    if (e.target.checked) MY.clear();
+    mySave(); myRenderList(); render();
+  });
+  mySyncState();
+})();
+
+// ---------------- theme toggle (light glass / dark flat) ----------------
+function applyTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  const b = document.getElementById("themeBtn");
+  if (b) { b.textContent = (t === "dark") ? "☀" : "🌙";
+           b.title = (t === "dark") ? "Светлая тема" : "Тёмная тема"; }
+}
+(function themeInit() {
+  applyTheme(document.documentElement.getAttribute("data-theme") || "light");
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    applyTheme(next);
+    setCookie("arb_theme", next);
+  });
+})();
+
+load();
+setInterval(load, REFRESH_MS);
+setInterval(updateStatus, 1000);
+</script>
+
+
+
+</body>
+</html>
